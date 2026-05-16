@@ -1,0 +1,20 @@
+{
+  "name": "slop-market",
+  "interface": {
+    "displayName": "Slop Market"
+  },
+  "plugins": [
+    {
+      "name": "marketplace-starter",
+      "source": {
+        "source": "local",
+        "path": "./plugins/marketplace-starter"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

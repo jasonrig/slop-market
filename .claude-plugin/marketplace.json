@@ -1,0 +1,16 @@
+{
+  "name": "slop-market",
+  "description": "A cross-compatible plugin marketplace for Codex-first plugins that can also load in Claude Code.",
+  "version": "0.1.0",
+  "owner": {
+    "name": "Jason Rigby",
+    "email": "jason@jasonrig.by"
+  },
+  "plugins": [
+    {
+      "name": "marketplace-starter",
+      "source": "./plugins/marketplace-starter",
+      "description": "Starter skill showing the expected Slop Market plugin layout."
+    }
+  ]
+}

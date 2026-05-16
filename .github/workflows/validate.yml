@@ -1,0 +1,45 @@
+name: Validate marketplace
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Docs-derived conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Codex and Claude marketplace structure
+        run: npm run validate
+
+  native-cli-smoke:
+    name: Native CLI smoke
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install current CLIs
+        run: npm install --global @openai/codex @anthropic-ai/claude-code
+
+      - name: Run native validation smoke tests
+        run: npm run validate:native
