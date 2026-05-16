@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jasonrig.github.io/slop-market/schemas/claude-plugin.schema.json",
+  "title": "Slop Market Claude Code Plugin Manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["name", "description"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "$ref": "shared.schema.json#/$defs/kebabName"
+    },
+    "version": {
+      "$ref": "shared.schema.json#/$defs/semver"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "author": {
+      "$ref": "shared.schema.json#/$defs/author"
+    },
+    "homepage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository": {
+      "$ref": "shared.schema.json#/$defs/repository"
+    },
+    "license": {
+      "const": "MIT"
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "skills": {
+      "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+    },
+    "commands": {
+      "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+    },
+    "agents": {
+      "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+    },
+    "hooks": {
+      "oneOf": [
+        {
+          "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+        },
+        {
+          "type": "object"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "mcpServers": {
+      "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+    },
+    "outputStyles": {
+      "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+    },
+    "lspServers": {
+      "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+    },
+    "experimental": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "themes": {
+          "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+        },
+        "monitors": {
+          "$ref": "shared.schema.json#/$defs/pathOrPathArray"
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "shared.schema.json#/$defs/kebabName"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "$ref": "shared.schema.json#/$defs/kebabName"
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

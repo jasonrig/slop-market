@@ -1,0 +1,244 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jasonrig.github.io/slop-market/schemas/claude-marketplace.schema.json",
+  "title": "Slop Market Claude Code Marketplace",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["name", "owner", "plugins"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "$ref": "shared.schema.json#/$defs/kebabName",
+      "not": {
+        "enum": [
+          "claude-code-marketplace",
+          "claude-code-plugins",
+          "claude-plugins-official",
+          "anthropic-marketplace",
+          "anthropic-plugins",
+          "agent-skills",
+          "knowledge-work-plugins",
+          "life-sciences"
+        ]
+      }
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "$ref": "shared.schema.json#/$defs/semver"
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "email": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "pluginRoot": {
+          "$ref": "shared.schema.json#/$defs/relativePath"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "$ref": "shared.schema.json#/$defs/semver"
+        }
+      }
+    },
+    "allowCrossMarketplaceDependenciesOn": {
+      "type": "array",
+      "items": {
+        "$ref": "shared.schema.json#/$defs/kebabName"
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["name", "source", "description"],
+        "properties": {
+          "name": {
+            "$ref": "shared.schema.json#/$defs/kebabName"
+          },
+          "source": {
+            "$ref": "#/$defs/claudeSource"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "$ref": "shared.schema.json#/$defs/semver"
+          },
+          "author": {
+            "$ref": "shared.schema.json#/$defs/author"
+          },
+          "homepage": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repository": {
+            "$ref": "shared.schema.json#/$defs/repository"
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1
+          },
+          "keywords": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "strict": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "claudeSource": {
+      "oneOf": [
+        {
+          "$ref": "shared.schema.json#/$defs/relativePath"
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["source", "repo"],
+          "properties": {
+            "source": {
+              "const": "github"
+            },
+            "repo": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sparsePaths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["source", "url"],
+          "properties": {
+            "source": {
+              "enum": ["git", "url"]
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sparsePaths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["source", "url", "path"],
+          "properties": {
+            "source": {
+              "const": "git-subdir"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "$ref": "shared.schema.json#/$defs/relativePath"
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["source", "package"],
+          "properties": {
+            "source": {
+              "const": "npm"
+            },
+            "package": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "registry": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

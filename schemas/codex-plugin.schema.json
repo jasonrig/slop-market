@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jasonrig.github.io/slop-market/schemas/codex-plugin.schema.json",
+  "title": "Slop Market Codex Plugin Manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["name", "description"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "$ref": "shared.schema.json#/$defs/kebabName"
+    },
+    "version": {
+      "$ref": "shared.schema.json#/$defs/semver"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "author": {
+      "$ref": "shared.schema.json#/$defs/author"
+    },
+    "homepage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository": {
+      "$ref": "shared.schema.json#/$defs/repository"
+    },
+    "license": {
+      "const": "MIT"
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "skills": {
+      "$ref": "shared.schema.json#/$defs/relativePath"
+    },
+    "mcpServers": {
+      "$ref": "shared.schema.json#/$defs/relativePath"
+    },
+    "apps": {
+      "$ref": "shared.schema.json#/$defs/relativePath"
+    },
+    "hooks": {
+      "oneOf": [
+        {
+          "$ref": "shared.schema.json#/$defs/relativePath"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "shared.schema.json#/$defs/relativePath"
+          }
+        },
+        {
+          "type": "object"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      ]
+    },
+    "interface": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shortDescription": {
+          "type": "string",
+          "minLength": 1
+        },
+        "longDescription": {
+          "type": "string",
+          "minLength": 1
+        },
+        "developerName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "websiteURL": {
+          "type": "string",
+          "minLength": 1
+        },
+        "privacyPolicyURL": {
+          "type": "string",
+          "minLength": 1
+        },
+        "termsOfServiceURL": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultPrompt": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "brandColor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "composerIcon": {
+          "$ref": "shared.schema.json#/$defs/relativePath"
+        },
+        "logo": {
+          "$ref": "shared.schema.json#/$defs/relativePath"
+        },
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "$ref": "shared.schema.json#/$defs/relativePath"
+          }
+        }
+      }
+    }
+  }
+}

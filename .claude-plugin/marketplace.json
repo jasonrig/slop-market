@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/claude-marketplace.schema.json",
   "name": "slop-market",
   "description": "A cross-compatible plugin marketplace for Codex-first plugins that can also load in Claude Code.",
   "version": "0.1.0",

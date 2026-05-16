@@ -34,8 +34,11 @@ claude plugin marketplace add ./
 Run the docs-derived conformance checks before pushing:
 
 ```sh
+npm ci
 npm run validate
 ```
+
+Validation uses AJV with the JSON Schema files in `schemas/`, then adds filesystem checks for local plugin paths, shared catalog coverage, and skill frontmatter.
 
 If you have both CLIs installed, you can also run a native smoke test in an isolated temporary home directory:
 

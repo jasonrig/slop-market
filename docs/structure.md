@@ -12,6 +12,7 @@ This repository keeps Codex and Claude Code metadata side by side while sharing 
 |       |-- .claude-plugin/plugin.json     # Claude Code plugin manifest
 |       `-- skills/install-check/SKILL.md  # Shared skill implementation
 |-- scripts/validate-marketplace.mjs       # Required CI conformance checks
+|-- schemas/*.schema.json                  # JSON Schemas used by CI
 `-- .github/workflows/validate.yml         # GitHub Actions
 ```
 
@@ -34,3 +35,4 @@ Shared requirements enforced here:
 - Local plugin names and paths match across both catalogs.
 - Plugin manifests use the same kebab-case plugin name as their catalog entry.
 - Skill folders contain `SKILL.md` files with YAML frontmatter and a description.
+- AJV validates marketplace and plugin JSON against local schemas before filesystem checks run.

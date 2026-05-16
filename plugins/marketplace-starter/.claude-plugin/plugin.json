@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../schemas/claude-plugin.schema.json",
   "name": "marketplace-starter",
   "description": "Starter skill showing the expected Slop Market plugin layout.",
   "version": "0.1.0",
