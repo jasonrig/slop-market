@@ -36,3 +36,5 @@ Shared requirements enforced here:
 - Plugin manifests use the same kebab-case plugin name as their catalog entry.
 - Skill folders contain `SKILL.md` files with YAML frontmatter and a description.
 - AJV validates marketplace and plugin JSON against local schemas before filesystem checks run.
+
+New plugins can be created with `npm run scaffold -- <plugin-name>`. The scaffold command writes the shared plugin layout, adds both marketplace entries, and creates a starter skill that satisfies the frontmatter checks.

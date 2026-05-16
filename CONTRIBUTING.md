@@ -4,6 +4,7 @@ Thanks for helping grow Slop Market. This repo favors small, self-contained plug
 
 Before opening a pull request:
 
+- Start new plugins with `npm run scaffold -- <plugin-name>` when possible.
 - Keep plugin and skill names in kebab-case.
 - Keep plugin files inside `plugins/<plugin-name>/`.
 - Add or update both provider manifests.

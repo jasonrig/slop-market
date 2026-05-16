@@ -50,11 +50,16 @@ GitHub Actions runs `npm run validate` on pushes and pull requests. The workflow
 
 ## Add A Plugin
 
-1. Create `plugins/<plugin-name>/` using kebab-case.
-2. Add `plugins/<plugin-name>/.codex-plugin/plugin.json` for Codex.
-3. Add `plugins/<plugin-name>/.claude-plugin/plugin.json` for Claude Code.
-4. Put skills under `plugins/<plugin-name>/skills/<skill-name>/SKILL.md`.
-5. Add the plugin to both marketplace files.
-6. Run `npm run validate`.
+Use the scaffold command to create the plugin directory, both provider manifests, a starter skill, and both marketplace entries:
+
+```sh
+npm run scaffold -- my-plugin
+```
+
+Then replace the generated TODO values, edit the starter skill, and run:
+
+```sh
+npm run validate
+```
 
 For local plugin entries, keep source paths relative to the marketplace root, start paths with `./`, and keep each plugin self-contained inside its own directory.
