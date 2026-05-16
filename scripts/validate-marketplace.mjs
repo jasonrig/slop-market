@@ -90,13 +90,19 @@ function resolveInside(root, relativePath, label) {
     return null;
   }
 
-  const normalized = path.normalize(relativePath);
-  if (normalized === '..' || normalized.startsWith(`..${path.sep}`)) {
-    fail(`${label} must stay inside the marketplace root`);
+  const relativePart = relativePath.slice(2);
+  if (relativePart.length === 0) {
+    fail(`${label} must not be ./`);
     return null;
   }
 
-  const absolute = path.resolve(root, relativePath);
+  const segments = relativePart.split('/').filter((segment) => segment.length > 0);
+  if (segments.some((segment) => segment === '..' || segment === '.')) {
+    fail(`${label} must stay inside its root without . or .. segments`);
+    return null;
+  }
+
+  const absolute = path.resolve(root, ...segments);
   const rootAbsolute = path.resolve(root);
   if (absolute !== rootAbsolute && !absolute.startsWith(`${rootAbsolute}${path.sep}`)) {
     fail(`${label} resolves outside ${displayPath(rootAbsolute)}`);
@@ -272,6 +278,52 @@ function validateManifestPath(pluginRoot, value, label, expectedKind = 'any') {
   return resolvedPaths;
 }
 
+function validateManifestStringPath(pluginRoot, value, label, expectedKind = 'any') {
+  if (Array.isArray(value) || isObject(value)) {
+    fail(`${label} must be a string path`);
+    return [];
+  }
+
+  return validateManifestPath(pluginRoot, value, label, expectedKind);
+}
+
+function validateCodexScreenshots(pluginRoot, value, label) {
+  if (!Array.isArray(value)) {
+    fail(`${label} must be an array of string paths`);
+    return;
+  }
+
+  validateManifestPath(pluginRoot, value, label, 'file');
+}
+
+function validateCodexDefaultPrompt(value, label) {
+  const prompts = typeof value === 'string' ? [value] : value;
+  if (!Array.isArray(prompts)) {
+    fail(`${label} must be a string or array of strings`);
+    return;
+  }
+
+  if (prompts.length > 3) {
+    fail(`${label} must contain at most 3 prompts`);
+  }
+
+  for (const [index, prompt] of prompts.entries()) {
+    const promptLabel = typeof value === 'string' ? label : `${label}[${index}]`;
+    if (typeof prompt !== 'string') {
+      fail(`${promptLabel} must be a string`);
+      continue;
+    }
+
+    const normalized = prompt.split(/\s+/).filter(Boolean).join(' ');
+    if (normalized.length === 0) {
+      fail(`${promptLabel} must not be empty`);
+    }
+    if ([...normalized].length > 128) {
+      fail(`${promptLabel} must be at most 128 characters after whitespace normalization`);
+    }
+  }
+}
+
 function readPluginManifest(pluginRoot, manifestDir, entryName, providerLabel) {
   const manifestPath = path.join(pluginRoot, manifestDir, 'plugin.json');
   const manifest = readJson(manifestPath);
@@ -302,7 +354,7 @@ function validateCodexPlugin(pluginRoot, entryName) {
   const { manifest, manifestPath, providerLabel } = result;
 
   if (manifest.skills !== undefined) {
-    const skillDirs = validateManifestPath(pluginRoot, manifest.skills, `${displayPath(manifestPath)} skills`, 'directory');
+    const skillDirs = validateManifestStringPath(pluginRoot, manifest.skills, `${displayPath(manifestPath)} skills`, 'directory');
     for (const skillsDir of skillDirs) {
       validateSkills(skillsDir, `${providerLabel} plugin ${entryName}`);
     }
@@ -311,10 +363,10 @@ function validateCodexPlugin(pluginRoot, entryName) {
   }
 
   if (manifest.mcpServers !== undefined) {
-    validateManifestPath(pluginRoot, manifest.mcpServers, `${displayPath(manifestPath)} mcpServers`, 'file');
+    validateManifestStringPath(pluginRoot, manifest.mcpServers, `${displayPath(manifestPath)} mcpServers`, 'file');
   }
   if (manifest.apps !== undefined) {
-    validateManifestPath(pluginRoot, manifest.apps, `${displayPath(manifestPath)} apps`, 'file');
+    validateManifestStringPath(pluginRoot, manifest.apps, `${displayPath(manifestPath)} apps`, 'file');
   }
   if (manifest.hooks !== undefined) {
     validateManifestPath(pluginRoot, manifest.hooks, `${displayPath(manifestPath)} hooks`, 'file');
@@ -323,13 +375,16 @@ function validateCodexPlugin(pluginRoot, entryName) {
   if (manifest.interface !== undefined) {
     assert(isObject(manifest.interface), `${displayPath(manifestPath)} interface must be an object`);
     if (manifest.interface.composerIcon !== undefined) {
-      validateManifestPath(pluginRoot, manifest.interface.composerIcon, `${displayPath(manifestPath)} interface.composerIcon`, 'file');
+      validateManifestStringPath(pluginRoot, manifest.interface.composerIcon, `${displayPath(manifestPath)} interface.composerIcon`, 'file');
     }
     if (manifest.interface.logo !== undefined) {
-      validateManifestPath(pluginRoot, manifest.interface.logo, `${displayPath(manifestPath)} interface.logo`, 'file');
+      validateManifestStringPath(pluginRoot, manifest.interface.logo, `${displayPath(manifestPath)} interface.logo`, 'file');
     }
     if (manifest.interface.screenshots !== undefined) {
-      validateManifestPath(pluginRoot, manifest.interface.screenshots, `${displayPath(manifestPath)} interface.screenshots`, 'file');
+      validateCodexScreenshots(pluginRoot, manifest.interface.screenshots, `${displayPath(manifestPath)} interface.screenshots`);
+    }
+    if (manifest.interface.defaultPrompt !== undefined) {
+      validateCodexDefaultPrompt(manifest.interface.defaultPrompt, `${displayPath(manifestPath)} interface.defaultPrompt`);
     }
   }
 }
