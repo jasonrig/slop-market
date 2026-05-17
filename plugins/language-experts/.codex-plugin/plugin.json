@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schemas/codex-plugin.schema.json",
   "name": "language-experts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Language-specific expert skills for authoring, reviewing, and refactoring code.",
   "author": {
     "name": "Jason Rigby",

@@ -13,14 +13,24 @@ At the start of each triggered use, retrieve the current Kotlin LLM documentatio
 https://kotlinlang.org/llms.txt
 ```
 
-Do not store, vendor, cache, or copy that file into this skill. Use it fresh each time. Treat it as an index: fetch only the specific linked Kotlin documentation pages needed for the task, such as language features, Gradle setup, coroutines, multiplatform, serialization, or testing. If network access is unavailable, say so briefly and continue from repo context and stable Kotlin knowledge.
+Do not store, vendor, cache, or copy that file into this skill. Use it fresh each time. Treat it as an index: fetch only the specific linked Kotlin documentation pages needed for the task, such as language features, Gradle setup, coroutines, multiplatform, serialization, or testing.
+
+If the preferred fetch method fails for `llms.txt` or a selected linked doc, retry the same URL with curl:
+
+```bash
+curl -L --fail --silent --show-error \
+  -H 'Accept: text/markdown,text/plain,*/*' \
+  <url>
+```
+
+If curl fails because sandboxed network access or DNS lookup is blocked, retry the curl command with sandbox escalation and a narrow justification. If network access remains unavailable, say so briefly and continue from repo context and stable Kotlin knowledge.
 
 When using fetched documentation, prefer official Kotlin pages from `kotlinlang.org`. For libraries or tools outside Kotlin itself, prefer their official docs.
 
 ## Workflow
 
 1. Identify the Kotlin context: Kotlin version, JVM target or multiplatform targets, Gradle plugins, enabled linters, test framework, and local code style.
-2. Fetch `https://kotlinlang.org/llms.txt`, then fetch only the relevant linked docs for current or uncertain Kotlin details.
+2. Fetch `https://kotlinlang.org/llms.txt`, then fetch only the relevant linked docs for current or uncertain Kotlin details, using the curl fallback above when the preferred fetch path fails.
 3. For code review requests, narrow the initial scope before inspecting deeply. Unless directed otherwise, check Kotlin files changed between the current branch and the repository's default branch, usually `main` or `master`; if there is no clear branch base, check Kotlin files touched by the last several commits or currently uncommitted changes.
 4. Inspect nearby project code before changing style or APIs.
 5. Prefer the repository's established conventions unless they conflict with correctness or current Kotlin guidance.
@@ -39,10 +49,22 @@ Use idiomatic Kotlin instead of Java translated into Kotlin:
 - Prefer extension functions only when they improve call-site clarity without hiding important ownership.
 - Use scope functions sparingly; choose the one whose receiver and return value make the code easiest to read.
 - Keep public APIs ergonomic: stable names, minimal generic noise, Kotlin collection types, sensible defaults, and no leaked implementation details.
+- For `@JvmInline value class` wrappers and small public primitives, validate
+  only invariants that are true for every semantic use of the type. Put
+  operation-specific constraints in factories, request builders, or narrower
+  wrapper types so valid zero, negative, sentinel, or unavailable domain values
+  are not rejected accidentally.
 - Avoid premature abstractions, clever DSLs, and excessive type gymnastics unless they simplify real caller code.
 - Preserve Java interop intentionally when publishing JVM libraries: consider nullability annotations, overloads, visibility, and binary compatibility.
 
 For concurrency, prefer structured concurrency. Do not launch unscoped coroutines from library code. Make cancellation, dispatcher choice, backpressure, and resource ownership explicit. For streams, choose `Flow` only when it fits the lifecycle and semantics better than a suspend function or collection.
+
+For channels and callback-to-`Flow` bridges, remember that `trySend` is
+non-suspending. Do not combine a non-suspending callback path with
+`BufferOverflow.SUSPEND` unless the implementation actually calls a suspending
+send from an appropriate coroutine. Distinguish a closed channel from a full
+buffer, and make mapper failures, collector cancellation, and terminal shutdown
+cancel upstream resources deterministically.
 
 For error handling, use exceptions for exceptional failures and typed results for expected domain outcomes. Do not wrap everything in `Result` by reflex; optimize for clear caller behavior.
 
@@ -56,6 +78,11 @@ Check for:
 
 - Incorrect nullability, platform-type leakage, unchecked casts, unsafe smart-cast assumptions, and accidental mutation.
 - Coroutine leaks, blocking calls in suspend contexts, swallowed cancellation, or dispatcher misuse.
+- Channel and `Flow` bridges that treat `trySend` failure as cancellation
+  without checking whether the buffer is merely full, or that leave upstream
+  work running after mapper failure or collector cancellation.
+- Over-broad value-class validation that rejects valid domain values because an
+  operation-specific invariant was placed on a shared type.
 - Public APIs exposing internal/vendor types or implementation-specific collections.
 - Java-style Kotlin: mutable bean patterns, verbose getters, utility classes where top-level functions or objects fit better, or needless builders.
 - Overuse of scope functions, implicit receivers, inline/reified tricks, reflection, or DSLs that reduce readability.
