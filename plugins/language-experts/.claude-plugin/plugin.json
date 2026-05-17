@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../schemas/claude-plugin.schema.json",
+  "name": "language-experts",
+  "description": "Language-specific expert skills for authoring, reviewing, and refactoring code.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Jason Rigby"
+  },
+  "homepage": "https://github.com/jasonrig/slop-market",
+  "repository": "https://github.com/jasonrig/slop-market/tree/main/plugins/language-experts",
+  "license": "MIT",
+  "keywords": [
+    "language-experts",
+    "kotlin",
+    "developer-tools",
+    "codex",
+    "claude-code"
+  ],
+  "skills": "./skills/"
+}

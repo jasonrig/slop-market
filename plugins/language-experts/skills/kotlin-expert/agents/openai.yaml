@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kotlin Expert"
+  short_description: "Author and review idiomatic Kotlin code"
+  default_prompt: "Use $kotlin-expert to review this Kotlin code for idiomatic structure, ergonomics, and correctness."

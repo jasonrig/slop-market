@@ -6,16 +6,16 @@
   },
   "plugins": [
     {
-      "name": "marketplace-starter",
+      "name": "language-experts",
       "source": {
         "source": "local",
-        "path": "./plugins/marketplace-starter"
+        "path": "./plugins/language-experts"
       },
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "category": "Productivity"
+      "category": "Developer Tools"
     }
   ]
 }

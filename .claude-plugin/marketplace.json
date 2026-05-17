@@ -9,9 +9,9 @@
   },
   "plugins": [
     {
-      "name": "marketplace-starter",
-      "source": "./plugins/marketplace-starter",
-      "description": "Starter skill showing the expected Slop Market plugin layout."
+      "name": "language-experts",
+      "source": "./plugins/language-experts",
+      "description": "Language-specific expert skills for authoring, reviewing, and refactoring code."
     }
   ]
 }

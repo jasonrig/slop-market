@@ -8,6 +8,10 @@ The repository intentionally carries both marketplace formats:
 - Claude Code reads `.claude-plugin/marketplace.json`.
 - Shared plugins live under `plugins/<plugin-name>/` and include both `.codex-plugin/plugin.json` and `.claude-plugin/plugin.json` manifests.
 
+## Included Plugin
+
+Slop Market currently ships `language-experts`, a shared plugin for language-specific coding skills. Its first skill is `kotlin-expert` for idiomatic Kotlin authoring, refactoring, and review.
+
 ## Install
 
 Codex:
