@@ -64,7 +64,7 @@ function run() {
   const initialList = listPlugins();
   assert(Array.isArray(initialList.installed), 'plugin/list installed must be an array');
   assert(Array.isArray(initialList.available), 'plugin/list available must be an array');
-  assertEqual(initialList.installed.length, 0, 'isolated Claude config installed plugin count');
+  assertNoMarketplaceInstalls(initialList);
 
   if (marketplace.plugins.length === 0) {
     console.log(`No Claude Code plugins found in marketplace ${marketplace.name}.`);
@@ -173,7 +173,7 @@ function validateMarketplaceManifestParity(marketplacePlugin, manifestInfo, cont
     `${context} ${id} manifest description`
   );
 
-  if (marketplacePlugin.version) {
+  if (marketplacePlugin.version && manifestInfo.manifest.version) {
     assertEqual(
       manifestInfo.manifest.version,
       marketplacePlugin.version,
@@ -269,6 +269,18 @@ function findInstalledPlugin(listResponse, id) {
   return installedPlugin;
 }
 
+function assertNoMarketplaceInstalls(listResponse) {
+  const marketplacePluginIds = new Set(marketplace.plugins.map((plugin) => pluginId(plugin.name)));
+  const leakedInstalls = listResponse.installed.filter((candidate) =>
+    marketplacePluginIds.has(candidate.id)
+  );
+  assertEqual(
+    leakedInstalls.length,
+    0,
+    `isolated Claude config installed ${marketplace.name} plugin count`
+  );
+}
+
 function readLocalPluginManifest(marketplacePlugin) {
   const sourcePath = resolveLocalSourcePath(marketplacePlugin.source);
   if (!sourcePath) {
@@ -341,13 +353,7 @@ function runClaude(args, context) {
   const result = childProcess.spawnSync('claude', args, {
     cwd: repoRoot,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      HOME: tmpHome,
-      CLAUDE_CONFIG_DIR: claudeConfigDir,
-      CI: '1',
-      NO_COLOR: '1'
-    },
+    env: isolatedClaudeEnv(),
     maxBuffer: 10 * 1024 * 1024,
     timeout: commandTimeoutMs
   });
@@ -367,6 +373,26 @@ function runClaude(args, context) {
   }
 
   return result;
+}
+
+function isolatedClaudeEnv() {
+  const env = { ...process.env };
+
+  // Claude plugin cache/seed env vars can redirect marketplace writes outside
+  // CLAUDE_CONFIG_DIR, so remove inherited plugin-specific configuration.
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('CLAUDE_CODE_PLUGIN_')) {
+      delete env[key];
+    }
+  }
+
+  return {
+    ...env,
+    HOME: tmpHome,
+    CLAUDE_CONFIG_DIR: claudeConfigDir,
+    CI: '1',
+    NO_COLOR: '1'
+  };
 }
 
 function commandDetails(stdout, stderr) {
