@@ -23,9 +23,9 @@ mkdir -p "$CODEX_HOME" "$CLAUDE_CONFIG_DIR"
 # Each CLI check is optional because CI and local machines may have only one
 # provider installed. Missing CLIs are reported as skips rather than failures.
 if command -v claude >/dev/null 2>&1; then
-  claude plugin validate "$repo_root"
+  (cd "$repo_root" && node scripts/validate-claude-installs.mjs)
 else
-  echo "claude CLI not found; skipping native Claude validation." >&2
+  echo "claude CLI not found; skipping native Claude install smoke test." >&2
 fi
 
 if command -v codex >/dev/null 2>&1; then

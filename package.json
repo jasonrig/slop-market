@@ -8,6 +8,7 @@
   "scripts": {
     "scaffold": "node scripts/scaffold-plugin.mjs",
     "validate": "node scripts/validate-marketplace.mjs",
+    "validate:claude-install": "node scripts/validate-claude-installs.mjs",
     "validate:codex-install": "node scripts/validate-codex-installs.mjs",
     "validate:native": "bash scripts/validate-native.sh"
   },
