@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/claude-plugin.schema.json",
   "name": "language-experts",
   "description": "Language-specific expert skills for authoring, reviewing, and refactoring code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Jason Rigby"
   },
