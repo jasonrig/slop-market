@@ -3,7 +3,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+/**
+ * Scaffold a new plugin that can be installed by both supported providers.
+ *
+ * The script writes one shared plugin implementation under plugins/<name>/,
+ * then surrounds it with provider-specific metadata:
+ * - .codex-plugin/plugin.json for Codex
+ * - .claude-plugin/plugin.json for Claude Code
+ * - optional marketplace entries in both root catalogs
+ *
+ * Keep this file dependency-free so a fresh checkout can run the scaffolder
+ * before npm dependencies are installed.
+ */
 const repoRoot = process.cwd();
+
+// Plugin and skill names are normalized into the same kebab-case form that the
+// JSON schemas and validator enforce for marketplace entries and skill folders.
 const pluginNamePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const maxPluginNameLength = 64;
 
@@ -43,6 +58,9 @@ const pluginRoot = path.join(repoRoot, 'plugins', pluginName);
 const codexMarketplacePath = path.join(repoRoot, '.agents', 'plugins', 'marketplace.json');
 const claudeMarketplacePath = path.join(repoRoot, '.claude-plugin', 'marketplace.json');
 
+// Without --force, avoid silently replacing an existing plugin directory. With
+// --force, writes below are intentionally limited to the scaffolded files and
+// matching marketplace entries for this plugin name.
 if (fs.existsSync(pluginRoot) && !args.force) {
   fail(`Plugin directory already exists: ${displayPath(pluginRoot)}. Pass --force to overwrite scaffold files.`);
 }
@@ -103,6 +121,13 @@ if (args.marketplace) {
 }
 console.log('Run `npm run validate` to verify the marketplace.');
 
+/**
+ * Parse a small hand-rolled CLI surface.
+ *
+ * Options support both "--key value" and "--key=value" forms. Boolean flags
+ * reject inline values so accidental input like "--force=false" fails loudly
+ * instead of being treated as truthy.
+ */
 function parseArgs(argv) {
   const parsed = {
     category: undefined,
@@ -177,6 +202,8 @@ function parseArgs(argv) {
   return parsed;
 }
 
+// Read a value for a string option after parseArgs has determined whether the
+// value was inline or should come from the next argv entry.
 function readOptionValue(argv, key, inlineValue, readNext) {
   if (inlineValue !== undefined) {
     if (inlineValue.trim() === '') {
@@ -192,12 +219,20 @@ function readOptionValue(argv, key, inlineValue, readNext) {
   return nextValue;
 }
 
+// Keep flag handling strict so every accepted option has one obvious meaning.
 function rejectInlineValue(key, inlineValue) {
   if (inlineValue !== undefined) {
     fail(`--${key} does not take a value.`);
   }
 }
 
+/**
+ * Convert user-facing names into canonical ids.
+ *
+ * This is intentionally a forgiving transform for input convenience; the
+ * result is still checked against pluginNamePattern so empty or malformed names
+ * do not become persisted marketplace data.
+ */
 function normalizeName(value) {
   return String(value)
     .trim()
@@ -214,6 +249,8 @@ function titleize(name) {
     .join(' ');
 }
 
+// Codex interface metadata has a compact shortDescription field. Preserve an
+// explicit description when it already fits, otherwise trim it predictably.
 function makeShortDescription(name, explicitDescription) {
   if (explicitDescription) {
     return explicitDescription.length <= 80 ? explicitDescription : `${explicitDescription.slice(0, 77)}...`;
@@ -221,6 +258,8 @@ function makeShortDescription(name, explicitDescription) {
   return `Starter workflow for ${name}.`;
 }
 
+// Codex default prompts are validated at 128 characters after whitespace
+// normalization, so fall back to the canonical id if the display name is long.
 function makeDefaultPrompt(name, display) {
   const prompt = `Use ${display} when you need its starter workflow.`;
   if ([...prompt.split(/\s+/).filter(Boolean).join(' ')].length <= 128) {
@@ -229,6 +268,12 @@ function makeDefaultPrompt(name, display) {
   return `Use ${name} when you need its starter workflow.`;
 }
 
+/**
+ * Load an existing marketplace catalog or synthesize the minimum valid shell.
+ *
+ * This performs only the structural checks needed for safe mutation here. Full
+ * schema and filesystem validation is delegated to scripts/validate-marketplace.mjs.
+ */
 function readMarketplace(filePath, fallback) {
   if (!fs.existsSync(filePath)) {
     return fallback;
@@ -248,6 +293,7 @@ function readMarketplace(filePath, fallback) {
   }
 }
 
+// Marketplace factory for a repo that does not yet have a Codex catalog.
 function createCodexMarketplace() {
   return {
     $schema: '../../schemas/codex-marketplace.schema.json',
@@ -259,6 +305,7 @@ function createCodexMarketplace() {
   };
 }
 
+// Marketplace factory for a repo that does not yet have a Claude Code catalog.
 function createClaudeMarketplace() {
   return {
     $schema: '../schemas/claude-marketplace.schema.json',
@@ -272,6 +319,12 @@ function createClaudeMarketplace() {
   };
 }
 
+/**
+ * Add or replace exactly one marketplace entry.
+ *
+ * The provider-specific entry shapes differ, so callers pass makeEntry while
+ * this shared helper owns duplicate detection and --force replacement behavior.
+ */
 function upsertMarketplaceEntry({ marketplace, marketplacePath, pluginName, force, makeEntry }) {
   const existingIndex = marketplace.plugins.findIndex((entry) => entry?.name === pluginName);
   if (existingIndex !== -1 && !force) {
@@ -286,6 +339,8 @@ function upsertMarketplaceEntry({ marketplace, marketplacePath, pluginName, forc
   }
 }
 
+// Codex manifest metadata mirrors the local schema and includes the interface
+// fields surfaced by the Codex plugin marketplace UI.
 function createCodexManifest() {
   return {
     $schema: '../../../schemas/codex-plugin.schema.json',
@@ -316,6 +371,8 @@ function createCodexManifest() {
   };
 }
 
+// Claude Code needs its own manifest, but points at the same shared skills
+// directory so provider-specific metadata does not duplicate implementation.
 function createClaudeManifest() {
   return {
     $schema: '../../../schemas/claude-plugin.schema.json',
@@ -327,6 +384,8 @@ function createClaudeManifest() {
   };
 }
 
+// Starter skill content is intentionally valid but minimal: new plugin authors
+// should replace the behavior after scaffold generation.
 function createSkill() {
   return `---
 name: ${skillName}
@@ -341,6 +400,8 @@ When invoked, confirm that ${displayName} is installed and ready to customize. K
 `;
 }
 
+// Keep the generated README focused on the immediate edits needed to make the
+// scaffold production-ready.
 function createReadme() {
   return `# ${displayName}
 
@@ -354,15 +415,20 @@ Boilerplate Slop Market plugin scaffold.
 `;
 }
 
+// All generated JSON is pretty-printed with a trailing newline to keep diffs
+// stable and readable.
 function writeJson(filePath, value) {
   writeText(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+// Create parent directories lazily so each write call owns its full path.
 function writeText(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, value, 'utf8');
 }
 
+// Report repository-relative paths in CLI output so messages are stable across
+// machines and CI workspaces.
 function displayPath(filePath) {
   return path.relative(repoRoot, filePath) || '.';
 }
@@ -383,6 +449,8 @@ Options:
 `);
 }
 
+// The scaffolder fails fast because partial writes are only expected after all
+// argument and marketplace preflight checks have passed.
 function fail(message) {
   console.error(`error: ${message}`);
   process.exit(1);

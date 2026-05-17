@@ -3,15 +3,40 @@ import Ajv from 'ajv';
 import fs from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Validate Slop Market's dual-provider plugin catalog.
+ *
+ * Validation runs in layers:
+ * 1. Load and register the local JSON Schemas.
+ * 2. Validate each marketplace catalog against its provider schema.
+ * 3. For local marketplace entries, resolve the plugin root and validate the
+ *    matching provider manifest.
+ * 4. Check referenced files, skills, hooks, and provider-specific components.
+ * 5. Verify local Codex and Claude Code entries describe the same plugin set.
+ *
+ * The script accumulates errors where possible so contributors get a useful
+ * repair list from one run instead of fixing one failure at a time.
+ */
 const repoRoot = process.cwd();
 const schemaRoot = path.join(repoRoot, 'schemas');
 const errors = [];
 const warnings = [];
+
+// Tracks local catalog entries by provider. Cross-provider validation later
+// uses these maps to prove that shared plugin roots are represented in both
+// Codex and Claude Code catalogs under the same name.
 const localEntries = {
   codex: new Map(),
   claude: new Map()
 };
+
+// The same skills directory can be referenced by both manifests. Remembering
+// visited directories prevents duplicate warnings and duplicate frontmatter
+// errors for a shared implementation.
 const validatedSkillDirs = new Set();
+
+// Sentinel value that distinguishes "could not read JSON" from a valid JSON
+// value such as null. This lets callers keep accumulating unrelated errors.
 const readJsonFailed = Symbol('readJsonFailed');
 
 const schemaFiles = {
@@ -22,6 +47,9 @@ const schemaFiles = {
   claudePlugin: 'claude-plugin.schema.json'
 };
 
+// Load schemas before creating validators so broken schema files fail
+// immediately with a stack trace. Contributor-authored marketplace data is
+// reported through the collected errors array below.
 const schemas = Object.fromEntries(
   Object.entries(schemaFiles).map(([name, file]) => {
     const value = readJsonStrict(path.join(schemaRoot, file));
@@ -32,6 +60,8 @@ const schemas = Object.fromEntries(
   })
 );
 
+// AJV strict mode is disabled because the schemas intentionally mirror provider
+// formats that may use shared $defs and compatibility keywords across tools.
 const ajv = new Ajv({
   allErrors: true,
   strict: false
@@ -43,6 +73,8 @@ for (const schema of Object.values(schemas)) {
 
 const kebabNamePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+// Validator checks prefer collecting failures over throwing. The final block is
+// the single place that decides whether the process exits non-zero.
 function fail(message) {
   errors.push(message);
 }
@@ -51,6 +83,7 @@ function warn(message) {
   warnings.push(message);
 }
 
+// Keep paths repository-relative in diagnostics so local and CI output match.
 function displayPath(filePath) {
   return path.relative(repoRoot, filePath) || '.';
 }
@@ -63,6 +96,8 @@ function readJsonStrict(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+// Read contributor-authored JSON without throwing so one malformed file does
+// not hide validation problems in unrelated catalog entries.
 function readJson(filePath) {
   if (!fs.existsSync(filePath)) {
     fail(`Missing required JSON file: ${displayPath(filePath)}`);
@@ -77,6 +112,8 @@ function readJson(filePath) {
   }
 }
 
+// Run an already-registered schema and translate AJV's machine-oriented errors
+// into messages that point at the file and JSON Pointer location.
 function validateWithSchema(schema, value, filePath) {
   const validate = ajv.getSchema(schema.id);
   if (!validate) {
@@ -95,6 +132,8 @@ function validateWithSchema(schema, value, filePath) {
   return false;
 }
 
+// Handle the common schema keywords used in this repository with clearer text,
+// while still falling back to AJV's message for less common failures.
 function formatSchemaError(error) {
   if (error.keyword === 'additionalProperties') {
     return `must not include unknown property ${error.params.additionalProperty}`;
@@ -114,6 +153,13 @@ function formatSchemaError(error) {
   return error.message ?? `failed schema keyword ${error.keyword}`;
 }
 
+/**
+ * Resolve a marketplace or manifest path relative to its owning root.
+ *
+ * Schemas require local paths to start with "./"; this resolver strips that
+ * prefix, resolves the path, and rejects traversal outside the expected root so
+ * component checks cannot accidentally inspect arbitrary files on the machine.
+ */
 function resolveRelativePath(root, relativePath, label) {
   const relativePart = relativePath.slice(2);
   const absolute = path.resolve(root, ...relativePart.split('/').filter(Boolean));
@@ -127,6 +173,8 @@ function resolveRelativePath(root, relativePath, label) {
   return absolute;
 }
 
+// Confirm that a referenced path exists and, when requested, is the expected
+// filesystem kind. expectedKind="any" accepts either a file or directory.
 function requireExistingPath(filePath, label, expectedKind) {
   if (!filePath) {
     return false;
@@ -165,6 +213,7 @@ function requireExistingFile(filePath, label) {
   return requireExistingPath(filePath, label, 'file');
 }
 
+// Record local marketplace entries for the later Codex/Claude parity check.
 function rememberLocalEntry(provider, name, relativePluginRoot, label) {
   const entries = localEntries[provider];
   if (entries.has(name)) {
@@ -175,6 +224,8 @@ function rememberLocalEntry(provider, name, relativePluginRoot, label) {
   entries.set(name, relativePluginRoot);
 }
 
+// Codex marketplace entries wrap local sources in an object, while Claude Code
+// uses a string. Return only local paths; remote/provider sources are skipped.
 function resolveLocalSourcePath(source) {
   if (typeof source === 'string') {
     return source;
@@ -187,6 +238,8 @@ function resolveLocalSourcePath(source) {
   return null;
 }
 
+// Manifest fields that reference files may be either a single path or an array
+// of paths. Normalize both shapes so the validation loop stays shared.
 function pathValues(value) {
   if (typeof value === 'string') {
     return [value];
@@ -197,6 +250,8 @@ function pathValues(value) {
   return [];
 }
 
+// Resolve and check a path-valued manifest field, returning only the paths that
+// were valid enough for downstream validation.
 function validateExistingPaths(pluginRoot, value, label, expectedKind) {
   const resolvedPaths = [];
   for (const relativePath of pathValues(value)) {
@@ -208,12 +263,20 @@ function validateExistingPaths(pluginRoot, value, label, expectedKind) {
   return resolvedPaths;
 }
 
+// Skills and plugins use the same canonical naming rule.
 function validateName(value, label) {
   if (!kebabNamePattern.test(value)) {
     fail(`${label} must be kebab-case with lowercase letters, digits, and hyphens`);
   }
 }
 
+/**
+ * Parse the small YAML frontmatter subset required from SKILL.md files.
+ *
+ * This is intentionally not a general YAML parser. The validator only needs
+ * simple "key: value" metadata for the fields enforced below, and avoiding an
+ * extra dependency keeps the validation install small.
+ */
 function parseFrontmatter(filePath) {
   const text = fs.readFileSync(filePath, 'utf8');
   if (!text.startsWith('---\n')) {
@@ -246,6 +309,13 @@ function parseFrontmatter(filePath) {
   return frontmatter;
 }
 
+/**
+ * Validate a plugin's skill implementation directory.
+ *
+ * The validator checks the Slop Market conventions around skill folders rather
+ * than every possible runtime behavior: each skill directory must be
+ * kebab-case, contain SKILL.md, and include frontmatter with a description.
+ */
 function validateSkills(skillsDir, label) {
   const skillsDirKey = path.resolve(skillsDir);
   if (validatedSkillDirs.has(skillsDirKey)) {
@@ -288,6 +358,7 @@ function validateSkills(skillsDir, label) {
   }
 }
 
+// Read and schema-validate a JSON file before later checks assume object shape.
 function readAndValidateJson(filePath, schema) {
   const value = readJson(filePath);
   if (value === readJsonFailed) {
@@ -301,6 +372,13 @@ function readAndValidateJson(filePath, schema) {
   return value;
 }
 
+/**
+ * Validate one provider manifest for a local plugin entry.
+ *
+ * The marketplace entry name is the source of truth, so the manifest must use
+ * that same name. Provider-specific component checks run after schema
+ * validation because schemas determine which fields are legal.
+ */
 function validatePluginManifest(pluginRoot, manifestDir, schema, entryName, provider) {
   const manifestPath = path.join(pluginRoot, manifestDir, 'plugin.json');
   const manifest = readAndValidateJson(manifestPath, schema);
@@ -318,6 +396,8 @@ function validatePluginManifest(pluginRoot, manifestDir, schema, entryName, prov
   return manifest;
 }
 
+// A missing skills field means "use ./skills" by convention. When a manifest
+// explicitly lists skills paths, each referenced directory is validated.
 function validateSkillsForManifest(pluginRoot, manifest, provider, entryName) {
   if (manifest.skills === undefined) {
     validateSkills(path.join(pluginRoot, 'skills'), `${provider} plugin ${entryName}`);
@@ -329,6 +409,8 @@ function validateSkillsForManifest(pluginRoot, manifest, provider, entryName) {
   }
 }
 
+// Dispatch through a shared wrapper so provider names stay explicit at the call
+// site while each provider can enforce its own component fields.
 function validateComponentFiles(pluginRoot, manifest, manifestDisplayPath, provider) {
   if (provider === 'Codex') {
     validateCodexComponentFiles(pluginRoot, manifest, manifestDisplayPath);
@@ -338,6 +420,8 @@ function validateComponentFiles(pluginRoot, manifest, manifestDisplayPath, provi
   validateClaudeComponentFiles(pluginRoot, manifest, manifestDisplayPath);
 }
 
+// Codex component fields are file-backed JSON/assets. Validate existence here;
+// the schema owns field shape and provider enum constraints.
 function validateCodexComponentFiles(pluginRoot, manifest, manifestDisplayPath) {
   for (const field of ['mcpServers', 'apps']) {
     if (manifest[field] !== undefined) {
@@ -363,6 +447,8 @@ function validateCodexComponentFiles(pluginRoot, manifest, manifestDisplayPath) 
   }
 }
 
+// Claude Code component references can point at files or directories depending
+// on the component type, so these checks require existence but allow either kind.
 function validateClaudeComponentFiles(pluginRoot, manifest, manifestDisplayPath) {
   for (const field of ['commands', 'agents', 'mcpServers', 'outputStyles', 'lspServers']) {
     if (manifest[field] !== undefined) {
@@ -381,16 +467,21 @@ function validateClaudeComponentFiles(pluginRoot, manifest, manifestDisplayPath)
 
   const defaultHooksPath = path.join(pluginRoot, 'hooks', 'hooks.json');
   if (fs.existsSync(defaultHooksPath)) {
+    // Claude Code also recognizes hooks/hooks.json by convention; parse it when
+    // present even if it is not explicitly referenced from the manifest.
     readJson(defaultHooksPath);
   }
 }
 
+// Hooks use the same string-or-array path shape as other manifest components.
 function validateHooks(pluginRoot, hooks, label) {
   for (const hookPath of pathValues(hooks)) {
     validateExistingPaths(pluginRoot, hookPath, label, 'file');
   }
 }
 
+// Keep Codex default prompts installable by enforcing the runtime's compact
+// prompt limit after applying the same whitespace normalization.
 function validateCodexDefaultPrompt(value, label) {
   const prompts = typeof value === 'string' ? [value] : value;
   if (!Array.isArray(prompts)) {
@@ -409,6 +500,13 @@ function validateCodexDefaultPrompt(value, label) {
   }
 }
 
+/**
+ * Validate the Codex marketplace catalog and all local Codex manifests it
+ * references.
+ *
+ * Remote/non-local sources are left to the provider tooling; this repository's
+ * validation owns only local plugin paths that can be inspected in the checkout.
+ */
 function validateCodexMarketplace() {
   const marketplacePath = path.join(repoRoot, '.agents', 'plugins', 'marketplace.json');
   const marketplace = readAndValidateJson(marketplacePath, schemas.codexMarketplace);
@@ -433,6 +531,11 @@ function validateCodexMarketplace() {
   }
 }
 
+/**
+ * Validate the Claude Code marketplace catalog and all local Claude manifests it
+ * references. This mirrors the Codex flow while preserving Claude's marketplace
+ * and manifest shapes.
+ */
 function validateClaudeMarketplace() {
   const marketplacePath = path.join(repoRoot, '.claude-plugin', 'marketplace.json');
   const marketplace = readAndValidateJson(marketplacePath, schemas.claudeMarketplace);
@@ -457,6 +560,9 @@ function validateClaudeMarketplace() {
   }
 }
 
+// Because plugins are shared implementations with two provider manifests, local
+// catalog entries must stay paired. A plugin present for only one provider, or
+// pointing to different roots, is treated as a repository consistency error.
 function validateCrossProviderCatalogs() {
   const codexNames = [...localEntries.codex.keys()].sort();
   const claudeNames = [...localEntries.claude.keys()].sort();
@@ -486,14 +592,20 @@ function validateCrossProviderCatalogs() {
   }
 }
 
+// Execute broad-to-specific validation before printing diagnostics. The order
+// matters: marketplace passes populate localEntries for the cross-provider pass.
 validateCodexMarketplace();
 validateClaudeMarketplace();
 validateCrossProviderCatalogs();
 
+// Warnings never fail CI; they call out empty or missing optional implementation
+// areas that may be acceptable while a plugin is being developed.
 for (const warning of warnings) {
   console.warn(`warning: ${warning}`);
 }
 
+// Print all accumulated errors together so contributors can fix related catalog,
+// manifest, and filesystem problems in one edit cycle.
 if (errors.length > 0) {
   console.error('Marketplace validation failed:');
   for (const error of errors) {
