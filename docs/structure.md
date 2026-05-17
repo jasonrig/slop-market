@@ -7,10 +7,10 @@ This repository keeps Codex and Claude Code metadata side by side while sharing 
 |-- .agents/plugins/marketplace.json       # Codex marketplace catalog
 |-- .claude-plugin/marketplace.json        # Claude Code marketplace catalog
 |-- plugins/
-|   `-- marketplace-starter/
+|   `-- language-experts/
 |       |-- .codex-plugin/plugin.json      # Codex plugin manifest
 |       |-- .claude-plugin/plugin.json     # Claude Code plugin manifest
-|       `-- skills/install-check/SKILL.md  # Shared skill implementation
+|       `-- skills/kotlin-expert/SKILL.md  # Shared skill implementation
 |-- scripts/validate-marketplace.mjs       # Required CI conformance checks
 |-- schemas/*.schema.json                  # JSON Schemas used by CI
 `-- .github/workflows/validate.yml         # GitHub Actions
