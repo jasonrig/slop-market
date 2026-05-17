@@ -30,8 +30,29 @@ jobs:
       - name: Validate Codex and Claude marketplace structure
         run: npm run validate
 
-  native-cli-smoke:
-    name: Native CLI smoke
+  codex-install-smoke:
+    name: Codex install smoke
+    runs-on: ubuntu-latest
+    needs: conformance
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install current Codex CLI
+        run: npm install --global @openai/codex
+
+      - name: Verify Codex can install marketplace plugins
+        run: npm run validate:codex-install
+
+  claude-native-smoke:
+    name: Claude native smoke
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -43,8 +64,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install current CLIs
-        run: npm install --global @openai/codex @anthropic-ai/claude-code
+      - name: Install current Claude Code CLI
+        run: npm install --global @anthropic-ai/claude-code
 
-      - name: Run native validation smoke tests
+      - name: Run best-effort native validation smoke tests
         run: npm run validate:native
